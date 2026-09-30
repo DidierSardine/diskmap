@@ -89,6 +89,24 @@ export async function fetchMap(scope, identifier, params = {}) {
 }
 
 /**
+ * Fetch the file-age histogram for a scope, optionally restricted to a
+ * subtree path: five buckets (≤1y, 1-3y, 3-6y, 6-10y, >10y) + the file
+ * total. Server-aggregated so the payload is constant whatever the scope
+ * holds (see UsageController::fileAges()).
+ *
+ * @param {string} scope 'user' | 'teamfolder' | 'storage'
+ * @param {string|number} identifier uid, team folder id, or numeric storage id
+ * @param {string} activeCategory CATEGORY_DOCUMENT, CATEGORY_IMAGE, CATEGORY_VIDEO, CATEGORY_ARCHIVE, CATEGORY_OTHER
+ * @param {object} params { path }
+ */
+export async function fetchFileAges(scope, identifier, activeCategory, params = {}) {
+    const { data } = await axios.get(base('/api/v1/file-ages'), {
+        params: { scope, identifier, activeCategory, ...params },
+    })
+    return data
+}
+
+/**
  * Fetch the whole-instance header total: files+trash+versions across every
  * user and team folder, plus the files-only figure the tree/map below
  * actually browse (see UsageController::instanceOverview()).
