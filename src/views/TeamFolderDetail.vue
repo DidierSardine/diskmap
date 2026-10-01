@@ -59,14 +59,36 @@
 						@select-path="onSelectPath" />
 				</Pane>
 				<Pane :size="paneSizes[1]" :min-size="15">
-					<Treemap
-						ref="treemap"
-						:key="folder.id"
-						scope="teamfolder"
-						:identifier="folder.id"
-						:folder-name="folder.name"
-						:active-category="activeCategory"
-						@reveal-path="onRevealPath" />
+					<Tabs>
+						<Tab title="Treemap">
+							<Treemap
+								ref="treemap"
+								:key="folder.id"
+								scope="teamfolder"
+								:identifier="folder.id"
+								:folder-name="folder.name"
+								:active-category="activeCategory"
+								@reveal-path="onRevealPath" />
+						</Tab>
+						<Tab :title="t('diskmap', 'Files age')">
+							<div style="display: flex; width: 100%; height:100%;">
+								<div style="width: 75%; height:100%">
+									<div style="width: 25%; height: 20%;">
+										<FileAgeChartDropdown v-model="ageMetric" />
+									</div>
+									<div style="height: 80%;">
+										<FileAgeChart :key="'bar-' + ageMetric" scope="teamfolder" :identifier="folder.id"
+											:type="ageMetric" :active-category="activeCategory" />
+									</div>
+								</div>
+								<div style="width: 25%; height:100%">
+									<FileAgeChart :key="'doughnut-' + ageMetric" scope="teamfolder" :identifier="folder.id"
+										:type="'percentages-' + ageMetric" variant="doughnut"
+										:active-category="activeCategory" />
+								</div>
+							</div>
+						</Tab>
+					</Tabs>
 				</Pane>
 			</Splitpanes>
 		</div>
@@ -77,6 +99,10 @@
 import { Splitpanes, Pane } from 'splitpanes'
 import { translate as t } from '@nextcloud/l10n'
 
+import FileAgeChartDropdown from '../components/FileAgeChartDropdown.vue'
+import FileAgeChart from '../components/FileAgeChart.vue'
+import Tabs from '../components/Tabs.vue'
+import Tab from '../components/Tab.vue'
 import FolderTree from '../components/FolderTree.vue'
 import Treemap from '../components/Treemap.vue'
 import CategoryLegend from '../components/CategoryLegend.vue'
@@ -86,7 +112,7 @@ import { filesAppUrl } from '../utils/filesApp.js'
 
 export default {
 	name: 'TeamFolderDetail',
-	components: { Treemap, FolderTree, CategoryLegend, Splitpanes, Pane },
+	components: { Treemap, FolderTree, CategoryLegend, Splitpanes, Pane, Tabs, Tab, FileAgeChart, FileAgeChartDropdown },
 	props: {
 		folder: { type: Object, required: true },
 	},
@@ -100,6 +126,11 @@ export default {
 			// onSelectPath() purely to drive the "Open in Files" link below —
 			// the tree/map sync itself doesn't need this view to remember it.
 			selectedPath: null,
+			// Metric shared by both "Files Age" charts, driven by the dropdown
+			// above them ('count' | 'size'). Owned here because the dropdown
+			// and the two charts are all siblings — one of them has to hold
+			// the value, and this view is the natural owner.
+			ageMetric: 'count',
 		}
 	},
 	computed: {

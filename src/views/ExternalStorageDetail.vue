@@ -53,14 +53,36 @@
 						@select-path="onSelectPath" />
 				</Pane>
 				<Pane :size="paneSizes[1]" :min-size="15">
-					<Treemap
-						ref="treemap"
-						:key="storage.storageId"
-						scope="storage"
-						:identifier="storage.storageId"
-						:folder-name="storage.name"
-						:active-category="activeCategory"
-						@reveal-path="onRevealPath" />
+					<Tabs>
+						<Tab title="Treemap">
+							<Treemap
+								ref="treemap"
+								:key="storage.storageId"
+								scope="storage"
+								:identifier="storage.storageId"
+								:folder-name="storage.name"
+								:active-category="activeCategory"
+								@reveal-path="onRevealPath" />
+						</Tab>
+						<Tab :title="t('diskmap', 'Files age')">
+							<div style="display: flex; width: 100%; height:100%;">
+								<div style="width: 75%; height:100%">
+									<div style="width: 25%; height: 20%;">
+										<FileAgeChartDropdown v-model="ageMetric" />
+									</div>
+									<div style="height: 80%;">
+										<FileAgeChart :key="'bar-' + ageMetric" scope="storage" :identifier="storage.storageId"
+											:type="ageMetric" :active-category="activeCategory" />
+									</div>
+								</div>
+								<div style="width: 25%; height:100%">
+									<FileAgeChart :key="'doughnut-' + ageMetric" scope="storage" :identifier="storage.storageId"
+										:type="'percentages-' + ageMetric" variant="doughnut"
+										:active-category="activeCategory" />
+								</div>
+							</div>
+						</Tab>
+					</Tabs>
 				</Pane>
 			</Splitpanes>
 		</div>
@@ -72,6 +94,10 @@ import { Splitpanes, Pane } from 'splitpanes'
 import { translate as t } from '@nextcloud/l10n'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 
+import FileAgeChartDropdown from '../components/FileAgeChartDropdown.vue'
+import FileAgeChart from '../components/FileAgeChart.vue'
+import Tabs from '../components/Tabs.vue'
+import Tab from '../components/Tab.vue'
 import FolderTree from '../components/FolderTree.vue'
 import Treemap from '../components/Treemap.vue'
 import CategoryLegend from '../components/CategoryLegend.vue'
@@ -80,7 +106,7 @@ import { loadPaneSizes, savePaneSizes } from '../utils/panelSplit.js'
 
 export default {
 	name: 'ExternalStorageDetail',
-	components: { Treemap, FolderTree, CategoryLegend, NcNoteCard, Splitpanes, Pane },
+	components: { Treemap, FolderTree, CategoryLegend, NcNoteCard, Splitpanes, Pane, Tabs, Tab, FileAgeChart, FileAgeChartDropdown },
 	props: {
 		storage: { type: Object, required: true },
 	},
@@ -91,6 +117,7 @@ export default {
 			// TeamFolderDetail owns it: the header's <CategoryLegend> and the
 			// map are siblings and must read/write one value.
 			activeCategory: null,
+			ageMetric: 'count',
 		}
 	},
 	computed: {
