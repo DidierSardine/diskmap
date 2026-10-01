@@ -215,6 +215,33 @@ class UsageController extends Controller {
         ]);
     }
 
+    #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
+    public function fileAges(string $scope, string $identifier, string $activeCategory = '', string $path = ''): JSONResponse {
+        try {
+            $scopeObj = Scope::fromRequest($scope, $identifier, $path);
+        } catch (\InvalidArgumentException $e) {
+            return new JSONResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        }
+    
+        $denied = $this->enforceScopeAccess($scopeObj);
+        if ($denied !== null) {
+            return $denied;
+        }
+    
+        $histogram = $this->usageSource->fileAgeHistogram($scopeObj, $activeCategory);
+    
+        return new JSONResponse([
+            'scope' => $scopeObj->type,
+            'identifier' => $scopeObj->identifier,
+            'path' => $scopeObj->path,
+            'total' => $histogram['total'],
+            'sizes' => $histogram['sizes'],
+            'buckets' => $histogram['buckets'],
+            'lastUpdated' => $this->usageSource->lastUpdated($scopeObj),
+        ]);
+    }
+
     /**
      * The whole-instance header total (plan Phase 3d follow-up) — files +
      * trash + versions across every user and team folder, matching the

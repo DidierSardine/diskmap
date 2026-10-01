@@ -24,7 +24,8 @@ use OCP\IDBConnection;
  *
  * Pure reads only — this class must never trigger a filesystem scan.
  */
-class FilecacheUsageSource implements IUsageSource {
+class FilecacheUsageSource implements IUsageSource
+{
 
     private ?int $folderMimetypeIdCache = null;
 
@@ -40,7 +41,8 @@ class FilecacheUsageSource implements IUsageSource {
     /** The aggregate of a folder with nothing under it — see recursiveComposition(). */
     private const EMPTY_COMPOSITION = ['count' => 0, 'composition' => []];
 
-    public function totalSize(Scope $scope): ?int {
+    public function totalSize(Scope $scope): ?int
+    {
         if ($scope->type === Scope::TYPE_INSTANCE) {
             return $this->instanceTotalSize();
         }
@@ -53,7 +55,8 @@ class FilecacheUsageSource implements IUsageSource {
         return $this->sizeAtExactPath($storageId, $path);
     }
 
-    public function lastUpdated(Scope $scope): ?int {
+    public function lastUpdated(Scope $scope): ?int
+    {
         if ($scope->type === Scope::TYPE_INSTANCE) {
             return $this->instanceLastUpdated();
         }
@@ -83,12 +86,13 @@ class FilecacheUsageSource implements IUsageSource {
         // gets a real one once something scans it — rendering that verbatim
         // dated the whole view to January 1970. Null is the "unknown" the
         // callers already handle.
-        $mtime = (int)$row['mtime'];
+        $mtime = (int) $row['mtime'];
 
         return $mtime > 0 ? $mtime : null;
     }
 
-    public function children(Scope $scope, int $limit): array {
+    public function children(Scope $scope, int $limit): array
+    {
         if ($scope->type === Scope::TYPE_INSTANCE) {
             return $this->instanceChildren($scope, $limit);
         }
@@ -109,23 +113,23 @@ class FilecacheUsageSource implements IUsageSource {
 
         $folderMimetypeId = $this->folderMimetypeId();
         $items = array_map(function (array $row) use ($folderMimetypeId) {
-            $isFolder = (int)$row['mimetype'] === $folderMimetypeId;
+            $isFolder = (int) $row['mimetype'] === $folderMimetypeId;
             // A folder inside an unscanned external storage is itself
             // unscanned, so it has no cached descendants to bound its size
             // with — 0 with the inexact flag is the honest answer, and it is
             // what tells the tree to keep offering the expand arrow. (No
             // per-row lower-bound query here for exactly that reason: it
             // would sum an empty set every time.)
-            $rawSize = (int)$row['size'];
+            $rawSize = (int) $row['size'];
             $sizeKnown = $rawSize >= 0;
 
             return new UsageNode(
-                name: (string)$row['name'],
-                path: (string)$row['path'],
+                name: (string) $row['name'],
+                path: (string) $row['path'],
                 size: $sizeKnown ? $rawSize : 0,
                 type: $isFolder ? 'folder' : 'file',
-                mimetype: !$isFolder && $row['mimetype_name'] !== null ? (string)$row['mimetype_name'] : null,
-                mtime: (int)$row['mtime'],
+                mimetype: !$isFolder && $row['mimetype_name'] !== null ? (string) $row['mimetype_name'] : null,
+                mtime: (int) $row['mtime'],
                 sizeExact: $sizeKnown ? null : false,
             );
         }, $rows);
@@ -175,7 +179,8 @@ class FilecacheUsageSource implements IUsageSource {
      *     items: array<string, array{count: int, composition: array<string, int>}>, // keyed by child name
      * }
      */
-    public function childComposition(Scope $scope, int $limit): array {
+    public function childComposition(Scope $scope, int $limit): array
+    {
         if ($scope->type === Scope::TYPE_INSTANCE) {
             if ($scope->path === '') {
                 return $this->instanceRootComposition($limit);
@@ -215,10 +220,10 @@ class FilecacheUsageSource implements IUsageSource {
         // check against a real team folder whose subfolders are years.)
         $folders = [];
         foreach ($rows as $row) {
-            if ((int)$row['mimetype'] !== $folderMimetypeId) {
+            if ((int) $row['mimetype'] !== $folderMimetypeId) {
                 continue;
             }
-            $folders[] = ['name' => (string)$row['name'], 'size' => (int)$row['size'], 'mtime' => (int)$row['mtime']];
+            $folders[] = ['name' => (string) $row['name'], 'size' => (int) $row['size'], 'mtime' => (int) $row['mtime']];
         }
 
         $items = [];
@@ -289,11 +294,12 @@ class FilecacheUsageSource implements IUsageSource {
      *
      * @return array{root: array{count: int, composition: array<string, int>}, items: array<string, array{count: int, composition: array<string, int>}>}
      */
-    private function instanceRootComposition(int $limit): array {
+    private function instanceRootComposition(int $limit): array
+    {
         $entries = $this->instanceIndex->listAll();
         // Same ordering and truncation instanceChildren() applies, so the
         // names here line up with the rows the tree actually rendered.
-        usort($entries, static fn (InstanceTopLevelEntry $a, InstanceTopLevelEntry $b) => $b->size <=> $a->size);
+        usort($entries, static fn(InstanceTopLevelEntry $a, InstanceTopLevelEntry $b) => $b->size <=> $a->size);
         $shown = array_slice($entries, 0, $limit);
         $compositions = $this->compositionsForEntries($shown);
 
@@ -319,7 +325,8 @@ class FilecacheUsageSource implements IUsageSource {
      * a normal folder path: an external storage's root lives at the literal
      * empty string, so its children have no leading slash to join onto.
      */
-    private function joinPath(string $parent, string $name): string {
+    private function joinPath(string $parent, string $name): string
+    {
         return $parent !== '' ? $parent . '/' . $name : $name;
     }
 
@@ -334,7 +341,8 @@ class FilecacheUsageSource implements IUsageSource {
      * self::MAX_TREE_QUERIES so a pathologically wide/deep tree can't spend
      * an unbounded number of round trips even before the node budget runs out.
      */
-    public function mapTree(Scope $scope, int $maxNodes): array {
+    public function mapTree(Scope $scope, int $maxNodes): array
+    {
         if ($scope->type === Scope::TYPE_INSTANCE) {
             return $this->instanceMapTree($maxNodes);
         }
@@ -382,10 +390,11 @@ class FilecacheUsageSource implements IUsageSource {
      * (expandFrontier() doesn't know or care that its frontier started from
      * several different storages instead of one).
      */
-    private function instanceMapTree(int $maxNodes): array {
+    private function instanceMapTree(int $maxNodes): array
+    {
         $entries = $this->instanceIndex->listAll();
-        usort($entries, static fn (InstanceTopLevelEntry $a, InstanceTopLevelEntry $b) => $b->size <=> $a->size);
-        $totalSize = array_sum(array_map(static fn (InstanceTopLevelEntry $e) => max(0, $e->size), $entries));
+        usort($entries, static fn(InstanceTopLevelEntry $a, InstanceTopLevelEntry $b) => $b->size <=> $a->size);
+        $totalSize = array_sum(array_map(static fn(InstanceTopLevelEntry $e) => max(0, $e->size), $entries));
 
         // Same node-budget principle as everywhere else in this tree: if the
         // instance has more top-level entries than the budget allows, keep
@@ -407,7 +416,7 @@ class FilecacheUsageSource implements IUsageSource {
 
         $builderRoot = $this->makeBuilderNode(storageId: 0, fileid: 0, name: '', size: $totalSize, type: 'folder', mimetype: null, mtime: null);
 
-        $keptNodes = array_map(fn (InstanceTopLevelEntry $e) => $this->makeBuilderNode(
+        $keptNodes = array_map(fn(InstanceTopLevelEntry $e) => $this->makeBuilderNode(
             storageId: $e->storageId,
             fileid: $e->fileid,
             name: $e->name,
@@ -428,7 +437,7 @@ class FilecacheUsageSource implements IUsageSource {
         // inline and never re-queues.
         $topNodes = $keptNodes;
         if (!empty($overflow)) {
-            $overflowSum = array_sum(array_map(static fn (InstanceTopLevelEntry $e) => max(0, $e->size), $overflow));
+            $overflowSum = array_sum(array_map(static fn(InstanceTopLevelEntry $e) => max(0, $e->size), $overflow));
             $topNodes[] = $this->makeOtherNode($overflowSum, count($overflow), true);
         }
 
@@ -437,6 +446,218 @@ class FilecacheUsageSource implements IUsageSource {
         $this->expandFrontier($keptNodes, max(1, $maxNodes - count($topNodes)), $totalSize);
 
         return ['root' => $this->toUsageNode($builderRoot['ref'])];
+    }
+
+    private const AGE_BUCKET_YEARS = [1, 3, 6, 10]; 
+    private const AGE_BUCKET_COUNT = 5;
+
+    private const ARCHIVE_MIMETYPE_PATTERN =
+        '/zip|tar|7z|rar|gzip|bzip2|x-xz|compress|iso9660|diskimage|executable|msdownload|portable-executable|debian\.binary-package|x-rpm|x-msi|cab-compressed|^application\/x-diskmap-(pst|dwg)$/i';
+    private const DOCUMENT_MIMETYPE_PATTERN =
+        '/^text\/|^application\/pdf$|^application\/(msword|vnd\.oasis|vnd\.openxmlformats|rtf|vnd\.ms-(excel|powerpoint))/i';
+    private const GENERIC_BINARY_MIMETYPE = 'application/octet-stream';
+    /** @var string[] LIKE patterns pour l'extension-only archive (.pst/.dwg) */
+    private const ARCHIVE_EXTENSION_LIKES = ['%.pst', '%.dwg'];
+
+    /** @var array<string, int[]> mimetype ids by category */
+    private array $categoryMimetypeIdCache = [];
+    private ?int $genericBinaryMimetypeIdCache = null;
+
+    /**
+     * Files-per-age-bucket histogram: five counts AND five byte sums,
+     * index 0 = newest (â‰¤1y, 1-3y, 3-6y, 6-10y, >10y), optionally restricted
+     * to one category (see src/utils/mimetypeCategory.js for the definitions).
+     *
+     * @return array{total: int, buckets: int[], sizes: int[]}
+     */
+    public function fileAgeHistogram(Scope $scope, string $category = ''): array {
+        $counts = array_fill(0, self::AGE_BUCKET_COUNT, 0);
+        $sizes = array_fill(0, self::AGE_BUCKET_COUNT, 0);
+
+        if ($scope->type === Scope::TYPE_INSTANCE) {
+            if (($scope->path ?? '') !== '') {
+                $delegate = $this->resolveInstanceDelegate($scope->path);
+                if ($delegate === null) {
+                    return ['total' => 0, 'buckets' => $counts, 'sizes' => $sizes];
+                }
+                return $this->fileAgeHistogram($delegate, $category);
+            }
+
+            $byPath = [];
+            foreach ($this->instanceIndex->listAll() as $entry) {
+                if (self::provablyEmpty($entry->size)) {
+                    continue;
+                }
+                $byPath[$entry->path][] = $entry->storageId;
+            }
+            foreach ($byPath as $path => $storageIds) {
+                [$c, $s] = $this->fileAgeHistogramQuery(array_values(array_unique($storageIds)), (string)$path, $category);
+                foreach ($c as $i => $v) {
+                    $counts[$i] += $v;
+                }
+                foreach ($s as $i => $v) {
+                    $sizes[$i] += $v;
+                }
+            }
+            return ['total' => array_sum($counts), 'buckets' => $counts, 'sizes' => $sizes];
+        }
+
+        $root = $this->rootPath($scope);
+        if ($root === null) {
+            return ['total' => 0, 'buckets' => $counts, 'sizes' => $sizes];
+        }
+        [$storageId, $path] = $root;
+        [$counts, $sizes] = $this->fileAgeHistogramQuery([$storageId], $path, $category);
+
+        return ['total' => array_sum($counts), 'buckets' => $counts, 'sizes' => $sizes];
+    }
+
+    /**
+     * Count AND byte sum of cached files under ($storageIds, $rootPath) per
+     * age bucket, optionally filtered to one category. Raw SQL + index hint
+     * for the same reason as recursiveComposition(): USE INDEX has no
+     * QueryBuilder spelling.
+     *
+     * @param int[] $storageIds
+     * @return array{0: int[], 1: int[]} [counts, sizes]
+     */
+    private function fileAgeHistogramQuery(array $storageIds, string $rootPath, string $category = ''): array {
+        $counts = array_fill(0, self::AGE_BUCKET_COUNT, 0);
+        $sizes = array_fill(0, self::AGE_BUCKET_COUNT, 0);
+
+        $case = $this->ageBucketCase();
+        $likePattern = $rootPath !== '' ? $this->db->escapeLikeParameter($rootPath) . '/%' : '%';
+        $placeholders = implode(',', array_fill(0, count($storageIds), '?'));
+
+        $categorySql = '';
+        $categoryParams = [];
+        if ($category !== '') {
+            [$categorySql, $categoryParams] = $this->categoryFilterSql($category);
+        }
+
+        $sql = 'SELECT ' . $case . ' AS bucket, COUNT(*) AS c, SUM(f.size) AS bytes
+                FROM *PREFIX*filecache f' . $this->pathPrefixIndexHint() . '
+                WHERE f.storage IN (' . $placeholders . ') AND f.path LIKE ? AND f.mimetype != ?' . $categorySql . '
+                GROUP BY ' . $case;
+        $result = $this->db->executeQuery($sql,
+            [...$storageIds, $likePattern, $this->folderMimetypeId(), ...$categoryParams]);
+
+        while ($row = $result->fetch()) {
+            $i = (int)$row['bucket'];
+            $counts[$i] += (int)$row['c'];
+            $sizes[$i] += (int)($row['bytes'] ?? 0);
+        }
+        $result->closeCursor();
+
+        return [$counts, $sizes];
+    }
+
+    /**
+     * Portable WHERE fragment restricting the histogram to one category.
+     * Unanchored IN / NOT IN / LIKE / LOWER only - identical behaviour on
+     * MariaDB, PostgreSQL, Oracle and SQLite.
+     *
+     * @return array{0: string, 1: array<int, int|string>} [sql starting with AND, positional params]
+     */
+    private function categoryFilterSql(string $category): array {
+        $extTest = 'f.mimetype = ? AND (LOWER(f.name) LIKE ? OR LOWER(f.name) LIKE ?)';
+        $extParams = [$this->genericBinaryMimetypeId(), ...self::ARCHIVE_EXTENSION_LIKES];
+
+        if ($category === 'archive') {
+            $ids = $this->categoryMimetypeIds($category);
+            if ($ids === []) {
+                return ['AND ' . $extTest, $extParams];
+            }
+            return ['AND (f.mimetype IN (' . $this->intPlaceholders($ids) . ') OR ' . $extTest . ')',
+                    [...$ids, ...$extParams]];
+        }
+
+        if ($category === 'other') {
+            $known = array_values(array_unique([
+                ...$this->categoryMimetypeIds('image'),
+                ...$this->categoryMimetypeIds('video'),
+                ...$this->categoryMimetypeIds('archive'),
+                ...$this->categoryMimetypeIds('document'),
+            ]));
+            if ($known === []) {
+                return ['AND NOT (' . $extTest . ')', $extParams];
+            }
+            return ['AND f.mimetype NOT IN (' . $this->intPlaceholders($known) . ') AND NOT (' . $extTest . ')',
+                    [...$known, ...$extParams]];
+        }
+
+        $ids = $this->categoryMimetypeIds($category);
+        if ($ids === []) {
+            return ['AND 1 = 0', []];
+        }
+        return ['AND f.mimetype IN (' . $this->intPlaceholders($ids) . ')', $ids];
+    }
+
+    private function categoryMimetypeIds(string $category): array {
+        if (isset($this->categoryMimetypeIdCache[$category])) {
+            return $this->categoryMimetypeIdCache[$category];
+        }
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('id', 'mimetype')->from('mimetypes');
+        $result = $qb->executeQuery();
+
+        $ids = [];
+        while ($row = $result->fetch()) {
+            if ($this->mimetypeInCategory((string)$row['mimetype'], $category)) {
+                $ids[] = (int)$row['id'];
+            }
+        }
+        $result->closeCursor();
+
+        return $this->categoryMimetypeIdCache[$category] = $ids;
+    }
+
+    private function mimetypeInCategory(string $mimetype, string $category): bool {
+        return match ($category) {
+            'image' => str_starts_with($mimetype, 'image/'),
+            'video' => str_starts_with($mimetype, 'video/'),
+            'archive' => preg_match(self::ARCHIVE_MIMETYPE_PATTERN, $mimetype) === 1,
+            'document' => preg_match(self::DOCUMENT_MIMETYPE_PATTERN, $mimetype) === 1,
+            default => false,
+        };
+    }
+
+    /**
+     * Id de application/octet-stream â€” mÃªme schÃ©ma que folderMimetypeId().
+     * -1 ne matche jamais un vrai id : une table sans cette ligne exclut
+     * proprement le rattrapage extension au lieu de crasher.
+     */
+    private function genericBinaryMimetypeId(): int {
+        if ($this->genericBinaryMimetypeIdCache === null) {
+            $qb = $this->db->getQueryBuilder();
+            $qb->select('id')
+                ->from('mimetypes')
+                ->where($qb->expr()->eq('mimetype', $qb->createNamedParameter(self::GENERIC_BINARY_MIMETYPE)))
+                ->setMaxResults(1);
+
+            $result = $qb->executeQuery();
+            $row = $result->fetch();
+            $result->closeCursor();
+
+            $this->genericBinaryMimetypeIdCache = $row ? (int)$row['id'] : -1;
+        }
+        return $this->genericBinaryMimetypeIdCache;
+    }
+
+    private function intPlaceholders(array $ids): string {
+        return implode(',', array_fill(0, count($ids), '?'));
+    }
+
+    private function ageBucketCase(): string
+    {
+        $year = (int) (365.25 * 86400);
+        $now = time();
+        $case = 'CASE';
+        foreach (self::AGE_BUCKET_YEARS as $index => $years) {
+            $case .= ' WHEN f.mtime >= ' . ($now - $years * $year) . ' THEN ' . $index;
+        }
+        return $case . ' ELSE ' . (self::AGE_BUCKET_COUNT - 1) . ' END';
     }
 
     private const TREE_LEVEL_LIMIT = 500;
@@ -473,14 +694,15 @@ class FilecacheUsageSource implements IUsageSource {
      * own docblock for why best-first (not BFS/DFS) is what makes the
      * budget land on the biggest, most map-relevant content.
      */
-    private function expandFrontier(array $frontier, int $budget, int $rootSize = 0): void {
+    private function expandFrontier(array $frontier, int $budget, int $rootSize = 0): void
+    {
         // Absolute floor below which a child can never earn its own tile,
         // however large a share of its immediate parent it happens to be —
         // see MIN_TILE_ROOT_RATIO.
-        $minTileSize = (int)floor(max(0, $rootSize) * self::MIN_TILE_ROOT_RATIO);
+        $minTileSize = (int) floor(max(0, $rootSize) * self::MIN_TILE_ROOT_RATIO);
         $queries = 0;
         while ($budget > 1 && $queries < self::MAX_TREE_QUERIES && !empty($frontier)) {
-            usort($frontier, static fn (array $a, array $b) => $b['size'] <=> $a['size']);
+            usort($frontier, static fn(array $a, array $b) => $b['size'] <=> $a['size']);
             $node = array_shift($frontier);
             // Uses the shared predicate for consistency, but nothing with an
             // unmeasured size actually reaches this point: a -1 child never
@@ -502,22 +724,22 @@ class FilecacheUsageSource implements IUsageSource {
             }
 
             $folderMimetypeId = $this->folderMimetypeId();
-            $threshold = max(1, (int)floor($node['size'] * self::SMALL_FILE_RATIO), $minTileSize);
+            $threshold = max(1, (int) floor($node['size'] * self::SMALL_FILE_RATIO), $minTileSize);
             $big = [];
             $bigSum = 0;
             $smallCount = 0;
             foreach ($rows as $row) {
-                $isFolder = (int)$row['mimetype'] === $folderMimetypeId;
-                $size = (int)$row['size'];
+                $isFolder = (int) $row['mimetype'] === $folderMimetypeId;
+                $size = (int) $row['size'];
                 if ($size >= $threshold) {
                     $big[] = $this->makeBuilderNode(
                         storageId: $node['storageId'],
-                        fileid: (int)$row['fileid'],
-                        name: (string)$row['name'],
+                        fileid: (int) $row['fileid'],
+                        name: (string) $row['name'],
                         size: $size,
                         type: $isFolder ? 'folder' : 'file',
-                        mimetype: !$isFolder && $row['mimetype_name'] !== null ? (string)$row['mimetype_name'] : null,
-                        mtime: (int)$row['mtime'],
+                        mimetype: !$isFolder && $row['mimetype_name'] !== null ? (string) $row['mimetype_name'] : null,
+                        mtime: (int) $row['mtime'],
                     );
                     $bigSum += max(0, $size);
                 } else {
@@ -583,7 +805,8 @@ class FilecacheUsageSource implements IUsageSource {
      * 'ref' key to a small mutable object (for the shared mutation) —
      * toUsageNode() walks 'ref' objects into the final readonly tree.
      */
-    private function makeBuilderNode(int $storageId, int $fileid, string $name, int $size, string $type, ?string $mimetype, ?int $mtime, ?string $displayName = null, ?bool $sizeExact = null): array {
+    private function makeBuilderNode(int $storageId, int $fileid, string $name, int $size, string $type, ?string $mimetype, ?int $mtime, ?string $displayName = null, ?bool $sizeExact = null): array
+    {
         $ref = new \stdClass();
         $ref->fileid = $fileid;
         $ref->name = $name;
@@ -612,7 +835,8 @@ class FilecacheUsageSource implements IUsageSource {
      * candidate for further expansion — used both for small-file folding
      * within one folder and for instance-level user/team-folder overflow.
      */
-    private function makeOtherNode(int $size, int $count, bool $countExact): array {
+    private function makeOtherNode(int $size, int $count, bool $countExact): array
+    {
         return [
             'fileid' => 0,
             'name' => '',
@@ -628,7 +852,8 @@ class FilecacheUsageSource implements IUsageSource {
         ];
     }
 
-    private function toUsageNode(\stdClass $ref): UsageNode {
+    private function toUsageNode(\stdClass $ref): UsageNode
+    {
         return new UsageNode(
             name: $ref->name,
             path: '', // unused by mapTree() consumers — the client walks the
@@ -641,7 +866,7 @@ class FilecacheUsageSource implements IUsageSource {
             mtime: $ref->mtime,
             fileCount: $ref->fileCount,
             children: $ref->children !== null ? array_map(
-                fn (array $child) => $this->toUsageNode($child['ref'] ?? $this->wrapSyntheticChild($child)),
+                fn(array $child) => $this->toUsageNode($child['ref'] ?? $this->wrapSyntheticChild($child)),
                 $ref->children,
             ) : null,
             countExact: $ref->countExact,
@@ -657,7 +882,8 @@ class FilecacheUsageSource implements IUsageSource {
      * same stdClass shape toUsageNode() expects so both kinds convert the
      * same way.
      */
-    private function wrapSyntheticChild(array $child): \stdClass {
+    private function wrapSyntheticChild(array $child): \stdClass
+    {
         $ref = new \stdClass();
         $ref->name = $child['name'];
         $ref->size = $child['size'];
@@ -675,7 +901,8 @@ class FilecacheUsageSource implements IUsageSource {
     /**
      * @return array{0: array<int, array{fileid:int,path:string,name:string,size:int,mtime:int,mimetype:int,mimetype_name:?string}>, 1: bool}
      */
-    private function fetchChildRows(int $storageId, int $parentFileId, int $limit): array {
+    private function fetchChildRows(int $storageId, int $parentFileId, int $limit): array
+    {
         $qb = $this->db->getQueryBuilder();
         $qb->select('f.fileid', 'f.path', 'f.name', 'f.size', 'f.mtime', 'f.mimetype')
             ->selectAlias('m.mimetype', 'mimetype_name')
@@ -785,7 +1012,8 @@ class FilecacheUsageSource implements IUsageSource {
      * Non-strict getDatabaseProvider() is what we want: it reports MariaDB as
      * PLATFORM_MYSQL, and the SQL genuinely is the same for both.
      */
-    private function isPostgres(): bool {
+    private function isPostgres(): bool
+    {
         return $this->db->getDatabaseProvider() === IDBConnection::PLATFORM_POSTGRES;
     }
 
@@ -796,7 +1024,8 @@ class FilecacheUsageSource implements IUsageSource {
      * index-hint syntax at all (the query would not parse), so it gets none
      * and relies on the planner reaching fs_storage_path_prefix by itself.
      */
-    private function pathPrefixIndexHint(): string {
+    private function pathPrefixIndexHint(): string
+    {
         return $this->isPostgres() ? '' : ' USE INDEX (fs_storage_path_prefix)';
     }
 
@@ -814,7 +1043,8 @@ class FilecacheUsageSource implements IUsageSource {
      * in GROUP BY without a duplicate parameter — while also sidestepping
      * PostgreSQL having to accept a bound parameter as an array subscript.
      */
-    private function firstPathSegmentsExpr(int $segments): string {
+    private function firstPathSegmentsExpr(int $segments): string
+    {
         if ($this->isPostgres()) {
             return "array_to_string((string_to_array(f.path, '/'))[1:" . $segments . "], '/')";
         }
@@ -833,11 +1063,13 @@ class FilecacheUsageSource implements IUsageSource {
      * and reported "0 files" with an empty composition bar for folders
      * whose contents were listed on the very same screen.
      */
-    private static function provablyEmpty(int $size): bool {
+    private static function provablyEmpty(int $size): bool
+    {
         return $size === 0;
     }
 
-    private function recursiveComposition(int $storageId, string $path, int $size): array {
+    private function recursiveComposition(int $storageId, string $path, int $size): array
+    {
         // A folder's own aggregate size already tells us whether it has any
         // descendants at all — skip the query for an empty folder.
         if (self::provablyEmpty($size)) {
@@ -863,9 +1095,9 @@ class FilecacheUsageSource implements IUsageSource {
         $count = 0;
         $composition = [];
         while ($row = $result->fetch()) {
-            $count += (int)$row['c'];
+            $count += (int) $row['c'];
             if ($row['mimetype'] !== null) {
-                $composition[(string)$row['mimetype']] = (int)$row['total'];
+                $composition[(string) $row['mimetype']] = (int) $row['total'];
             }
         }
         $result->closeCursor();
@@ -895,7 +1127,8 @@ class FilecacheUsageSource implements IUsageSource {
      * @return array<string, array{count: int, composition: array<string, int>}>
      *     keyed by compositionKey()
      */
-    private function compositionsForEntries(array $entries): array {
+    private function compositionsForEntries(array $entries): array
+    {
         $result = [];
         $byPath = [];
         $computed = [];
@@ -921,9 +1154,9 @@ class FilecacheUsageSource implements IUsageSource {
         }
 
         foreach ($byPath as $path => $group) {
-            $path = (string)$path;
+            $path = (string) $path;
             $storageIds = array_values(array_unique(array_map(
-                static fn (InstanceTopLevelEntry $e) => $e->storageId,
+                static fn(InstanceTopLevelEntry $e) => $e->storageId,
                 $group,
             )));
 
@@ -976,7 +1209,8 @@ class FilecacheUsageSource implements IUsageSource {
      * @param int[] $storageIds
      * @return array<int, array{count: int, composition: array<string, int>}> keyed by storage id
      */
-    private function bulkComposition(array $storageIds, string $path): array {
+    private function bulkComposition(array $storageIds, string $path): array
+    {
         $params = $storageIds;
         $params[] = $this->folderMimetypeId();
 
@@ -1001,11 +1235,11 @@ class FilecacheUsageSource implements IUsageSource {
         $result = $this->db->executeQuery($sql, $params);
         $byStorage = [];
         while ($row = $result->fetch()) {
-            $storageId = (int)$row['storage'];
+            $storageId = (int) $row['storage'];
             $byStorage[$storageId] ??= ['count' => 0, 'composition' => []];
-            $byStorage[$storageId]['count'] += (int)$row['c'];
+            $byStorage[$storageId]['count'] += (int) $row['c'];
             if ($row['mimetype'] !== null) {
-                $byStorage[$storageId]['composition'][(string)$row['mimetype']] = (int)$row['total'];
+                $byStorage[$storageId]['composition'][(string) $row['mimetype']] = (int) $row['total'];
             }
         }
         $result->closeCursor();
@@ -1040,7 +1274,8 @@ class FilecacheUsageSource implements IUsageSource {
      * @return array<string, array{count: int, composition: array<string, int>}>
      *     keyed by the child's full filecache path
      */
-    private function compositionByChild(int $storageId, string $path): array {
+    private function compositionByChild(int $storageId, string $path): array
+    {
         // Depth of the parent in segments: 'files/foo' is 2, and the external
         // storage root ('') is 0. One more than that is where its children sit.
         $childSegments = ($path === '' ? 0 : substr_count($path, '/') + 1) + 1;
@@ -1060,11 +1295,11 @@ class FilecacheUsageSource implements IUsageSource {
 
         $byChild = [];
         while ($row = $result->fetch()) {
-            $child = (string)$row['child'];
+            $child = (string) $row['child'];
             $byChild[$child] ??= self::EMPTY_COMPOSITION;
-            $byChild[$child]['count'] += (int)$row['c'];
+            $byChild[$child]['count'] += (int) $row['c'];
             if ($row['mimetype'] !== null) {
-                $byChild[$child]['composition'][(string)$row['mimetype']] = (int)$row['total'];
+                $byChild[$child]['composition'][(string) $row['mimetype']] = (int) $row['total'];
             }
         }
         $result->closeCursor();
@@ -1077,7 +1312,8 @@ class FilecacheUsageSource implements IUsageSource {
      * has several team folders on one storage), so neither alone is a usable
      * key for a precomputed-composition lookup.
      */
-    private function compositionKey(int $storageId, string $path): string {
+    private function compositionKey(int $storageId, string $path): string
+    {
         return $storageId . "\0" . $path;
     }
 
@@ -1099,7 +1335,8 @@ class FilecacheUsageSource implements IUsageSource {
      *
      * @return array{0: int, 1: bool} [size, isExact]
      */
-    private function resolveRootSize(int $storageId, string $path, int $rawSize): array {
+    private function resolveRootSize(int $storageId, string $path, int $rawSize): array
+    {
         if ($rawSize >= 0) {
             return [$rawSize, true];
         }
@@ -1113,7 +1350,8 @@ class FilecacheUsageSource implements IUsageSource {
      * counted on top of the files inside it; rows still at -1 drop out via
      * the same "size > 0" test.
      */
-    private function knownSizeBelow(int $storageId, string $path): int {
+    private function knownSizeBelow(int $storageId, string $path): int
+    {
         $qb = $this->db->getQueryBuilder();
         $qb->selectAlias($qb->func()->sum('size'), 'known_size')
             ->from('filecache')
@@ -1137,10 +1375,11 @@ class FilecacheUsageSource implements IUsageSource {
         $row = $result->fetch();
         $result->closeCursor();
 
-        return $row && $row['known_size'] !== null ? (int)$row['known_size'] : 0;
+        return $row && $row['known_size'] !== null ? (int) $row['known_size'] : 0;
     }
 
-    private function rowAtExactPath(int $storageId, string $path): ?array {
+    private function rowAtExactPath(int $storageId, string $path): ?array
+    {
         $qb = $this->db->getQueryBuilder();
         $qb->select('fileid', 'name', 'size', 'mtime')
             ->from('filecache')
@@ -1153,10 +1392,10 @@ class FilecacheUsageSource implements IUsageSource {
         $result->closeCursor();
 
         return $row ? [
-            'fileid' => (int)$row['fileid'],
-            'name' => (string)$row['name'],
-            'size' => (int)$row['size'],
-            'mtime' => (int)$row['mtime'],
+            'fileid' => (int) $row['fileid'],
+            'name' => (string) $row['name'],
+            'size' => (int) $row['size'],
+            'mtime' => (int) $row['mtime'],
         ] : null;
     }
 
@@ -1167,11 +1406,12 @@ class FilecacheUsageSource implements IUsageSource {
      *
      * @return array{0: int, 1: string}|null
      */
-    private function rootPath(Scope $scope): ?array {
+    private function rootPath(Scope $scope): ?array
+    {
         return match ($scope->type) {
-            Scope::TYPE_STORAGE => [(int)$scope->identifier, $scope->path],
+            Scope::TYPE_STORAGE => [(int) $scope->identifier, $scope->path],
             Scope::TYPE_USER => $this->userRoot($scope->identifier, $scope->path),
-            Scope::TYPE_TEAM_FOLDER => $this->teamFolderRoot((int)$scope->identifier, $scope->path),
+            Scope::TYPE_TEAM_FOLDER => $this->teamFolderRoot((int) $scope->identifier, $scope->path),
             // The instance scope spans every storage at once, so it has no
             // single (storage, path) root — InstanceIndex handles it before
             // anything gets here. Falling through to match's implicit
@@ -1185,7 +1425,8 @@ class FilecacheUsageSource implements IUsageSource {
     /**
      * @return array{0: int, 1: string}|null
      */
-    private function userRoot(string $uid, string $subPath): ?array {
+    private function userRoot(string $uid, string $subPath): ?array
+    {
         $storageId = $this->userHomeResolver->resolveStorageId($uid);
         if ($storageId === null) {
             return null;
@@ -1197,7 +1438,8 @@ class FilecacheUsageSource implements IUsageSource {
     /**
      * @return array{0: int, 1: string}|null
      */
-    private function teamFolderRoot(int $folderId, string $subPath): ?array {
+    private function teamFolderRoot(int $folderId, string $subPath): ?array
+    {
         $layout = $this->layoutDetector->resolve($folderId);
         if ($layout->filesStorageId === null) {
             return null;
@@ -1206,19 +1448,21 @@ class FilecacheUsageSource implements IUsageSource {
         return [$layout->filesStorageId, $path];
     }
 
-    private function instanceTotalSize(): int {
+    private function instanceTotalSize(): int
+    {
         return array_sum(array_map(
-            static fn (InstanceTopLevelEntry $e) => max(0, $e->size),
+            static fn(InstanceTopLevelEntry $e) => max(0, $e->size),
             $this->instanceIndex->listAll(),
         ));
     }
 
-    private function instanceLastUpdated(): ?int {
+    private function instanceLastUpdated(): ?int
+    {
         $entries = $this->instanceIndex->listAll();
         if (empty($entries)) {
             return null;
         }
-        return max(array_map(static fn (InstanceTopLevelEntry $e) => $e->mtime ?? 0, $entries));
+        return max(array_map(static fn(InstanceTopLevelEntry $e) => $e->mtime ?? 0, $entries));
     }
 
     /**
@@ -1230,11 +1474,12 @@ class FilecacheUsageSource implements IUsageSource {
      * folder are, past their own root, indistinguishable from any other
      * storage+path this class already knows how to browse.
      */
-    private function instanceChildren(Scope $scope, int $limit): array {
+    private function instanceChildren(Scope $scope, int $limit): array
+    {
         if ($scope->path === '') {
             $entries = $this->instanceIndex->listAll();
-            usort($entries, static fn (InstanceTopLevelEntry $a, InstanceTopLevelEntry $b) => $b->size <=> $a->size);
-            $totalSize = array_sum(array_map(static fn (InstanceTopLevelEntry $e) => max(0, $e->size), $entries));
+            usort($entries, static fn(InstanceTopLevelEntry $a, InstanceTopLevelEntry $b) => $b->size <=> $a->size);
+            $totalSize = array_sum(array_map(static fn(InstanceTopLevelEntry $e) => max(0, $e->size), $entries));
 
             $truncated = count($entries) > $limit;
             $shown = $truncated ? array_slice($entries, 0, $limit) : $entries;
@@ -1243,7 +1488,7 @@ class FilecacheUsageSource implements IUsageSource {
             // subtree aggregate means scanning every account on the instance,
             // and it is exactly what made the whole-server root slow to open.
             // childComposition() serves it separately (see there).
-            $items = array_map(static fn (InstanceTopLevelEntry $e) => new UsageNode(
+            $items = array_map(static fn(InstanceTopLevelEntry $e) => new UsageNode(
                 name: $e->name,
                 path: $e->name,
                 size: $e->size,
@@ -1281,7 +1526,8 @@ class FilecacheUsageSource implements IUsageSource {
      * first '/' would never match it. Picks the longest matching entry name
      * in case one entry's name happens to be a prefix of another's.
      */
-    private function resolveInstanceDelegate(string $path): ?Scope {
+    private function resolveInstanceDelegate(string $path): ?Scope
+    {
         $best = null;
         foreach ($this->instanceIndex->listAll() as $entry) {
             $isMatch = $path === $entry->name || str_starts_with($path, $entry->name . '/');
@@ -1304,7 +1550,8 @@ class FilecacheUsageSource implements IUsageSource {
         return Scope::forStorage($best->storageId, $subPath);
     }
 
-    private function sizeAtExactPath(int $storageId, string $path): ?int {
+    private function sizeAtExactPath(int $storageId, string $path): ?int
+    {
         $qb = $this->db->getQueryBuilder();
         $qb->select('size')
             ->from('filecache')
@@ -1316,10 +1563,11 @@ class FilecacheUsageSource implements IUsageSource {
         $row = $result->fetch();
         $result->closeCursor();
 
-        return $row ? (int)$row['size'] : null;
+        return $row ? (int) $row['size'] : null;
     }
 
-    private function folderMimetypeId(): int {
+    private function folderMimetypeId(): int
+    {
         if ($this->folderMimetypeIdCache === null) {
             $qb = $this->db->getQueryBuilder();
             $qb->select('id')
@@ -1333,7 +1581,7 @@ class FilecacheUsageSource implements IUsageSource {
 
             // -1 never matches a real mimetype id, so a missing row safely
             // excludes nothing instead of crashing.
-            $this->folderMimetypeIdCache = $row ? (int)$row['id'] : -1;
+            $this->folderMimetypeIdCache = $row ? (int) $row['id'] : -1;
         }
         return $this->folderMimetypeIdCache;
     }
