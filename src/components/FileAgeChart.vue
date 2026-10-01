@@ -43,6 +43,7 @@ export default {
     activeCategory: { type: String, default: null}
   },
   async mounted() {
+    console.log(this.type);
     await this.reload()
   },
   watch: {

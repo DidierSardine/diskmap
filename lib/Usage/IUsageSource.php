@@ -103,7 +103,7 @@ interface IUsageSource {
      * Like children()/mapTree(), the subtree is $scope->path; the path never
      * appears in the signature.
      *
-     * @return array{total: int, buckets: array{0: int, 1: int, 2: int, 3: int, 4: int}}
+     * @return array{total: int, buckets: array{0: int, 1: int, 2: int, 3: int, 4: int}, sizes: array{0: int, 1: int, 2: int, 3: int, 4: int}}
      *     total is the sum of buckets by construction.
      */
     public function fileAgeHistogram(Scope $scope, string $category): array;

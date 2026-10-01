@@ -475,7 +475,7 @@ class FilecacheUsageSource implements IUsageSource
         $sizes = array_fill(0, self::AGE_BUCKET_COUNT, 0);
 
         if ($scope->type === Scope::TYPE_INSTANCE) {
-            if (($scope->path ?? '') !== '') {
+            if ($scope->path !== '') {
                 $delegate = $this->resolveInstanceDelegate($scope->path);
                 if ($delegate === null) {
                     return ['total' => 0, 'buckets' => $counts, 'sizes' => $sizes];
