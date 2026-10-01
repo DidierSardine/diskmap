@@ -4,12 +4,12 @@
 
 <script>
 import { Chart } from 'vue-chartjs'
-import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, PieController, ArcElement } from 'chart.js'
+import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, BarController, CategoryScale, LinearScale, PieController, ArcElement, DoughnutController } from 'chart.js'
 import { cssVar, palette } from '../utils/colors.js'
 import { translate as t } from '@nextcloud/l10n'
 import { fetchFileAges } from '../services/api.js'
 
-ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, PieController, ArcElement)
+ChartJS.register(Title, Tooltip, Legend, BarElement, BarController, CategoryScale, LinearScale, PieController, ArcElement, DoughnutController)
 
 export default {
   name: 'FileAgeChart',
