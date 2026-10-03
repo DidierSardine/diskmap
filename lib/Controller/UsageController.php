@@ -264,7 +264,6 @@ class UsageController extends Controller {
         return new JSONResponse($payload);
     }
 
-
     /**
      * The whole-instance header total (plan Phase 3d follow-up) — files +
      * trash + versions across every user and team folder, matching the

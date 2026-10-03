@@ -48,10 +48,10 @@ OC.L10N.register(
     "3-6 yrs" : "3-6 ans",
     "6-10 yrs" : "6-10 ans",
     "> 10 yrs" : "> 10 ans",
-    "Files count" : "Nombre de fichiers",
-    "Files size" : "Taille des fichiers",
-    "Files percentages" : "Pourcentage des fichiers",
-    "Data" : "Données",
-    "Files age": "Age des fichiers"
+    "Map" : "Carte",
+    "File age" : "Âge des fichiers",
+    "Files by age" : "Fichiers par âge",
+    "Lower panel view" : "Vue du panneau inférieur",
+    "Could not load the file ages." : "Impossible de charger l'âge des fichiers."
 },
 "nplurals=2; plural=(n != 1);");

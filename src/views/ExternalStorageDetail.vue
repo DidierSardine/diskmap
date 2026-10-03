@@ -10,17 +10,19 @@
 			<span>
 				<strong>{{ usedLabel }}</strong> {{ t('diskmap', 'used') }}
 			</span>
-			<CategoryLegend
-				class="external-detail__legend"
-				:active-category="activeCategory"
-				@toggle="onToggleCategory" />
-			<button
-				type="button"
-				class="external-detail__info"
-				:title="t('diskmap', 'Reflects the file cache as of {date}.', { date: lastUpdatedLabel })"
-				:aria-label="t('diskmap', 'Reflects the file cache as of {date}.', { date: lastUpdatedLabel })">
-				ⓘ
-			</button>
+			<div class="external-detail__tools">
+				<CategoryLegend
+					:active-category="activeCategory"
+					@toggle="onToggleCategory" />
+				<LowerViewToggle v-model="lowerView" />
+				<button
+					type="button"
+					class="external-detail__info"
+					:title="t('diskmap', 'Reflects the file cache as of {date}.', { date: lastUpdatedLabel })"
+					:aria-label="t('diskmap', 'Reflects the file cache as of {date}.', { date: lastUpdatedLabel })">
+					ⓘ
+				</button>
+			</div>
 		</div>
 
 		<!-- An external storage is the one scope whose contents Nextcloud
@@ -53,36 +55,22 @@
 						@select-path="onSelectPath" />
 				</Pane>
 				<Pane :size="paneSizes[1]" :min-size="15">
-					<Tabs>
-						<Tab title="Treemap">
-							<Treemap
-								ref="treemap"
-								:key="storage.storageId"
-								scope="storage"
-								:identifier="storage.storageId"
-								:folder-name="storage.name"
-								:active-category="activeCategory"
-								@reveal-path="onRevealPath" />
-						</Tab>
-						<Tab :title="t('diskmap', 'Files age')">
-							<div style="display: flex; width: 100%; height:100%;">
-								<div style="width: 75%; height:100%">
-									<div style="width: 25%; height: 20%;">
-										<FileAgeChartDropdown v-model="ageMetric" />
-									</div>
-									<div style="height: 80%;">
-										<FileAgeChart :key="'bar-' + ageMetric" scope="storage" :identifier="storage.storageId"
-											:type="ageMetric" :active-category="activeCategory" />
-									</div>
-								</div>
-								<div style="width: 25%; height:100%">
-									<FileAgeChart :key="'doughnut-' + ageMetric" scope="storage" :identifier="storage.storageId"
-										:type="'percentages-' + ageMetric" variant="doughnut"
-										:active-category="activeCategory" />
-								</div>
-							</div>
-						</Tab>
-					</Tabs>
+					<Treemap
+						v-show="lowerView === 'map'"
+						ref="treemap"
+						:key="storage.storageId"
+						scope="storage"
+						:identifier="storage.storageId"
+						:folder-name="storage.name"
+						:active-category="activeCategory"
+						@reveal-path="onRevealPath" />
+					<FileAgePanel
+						v-if="lowerView === 'ages'"
+						:key="storage.storageId"
+						scope="storage"
+						:identifier="storage.storageId"
+						:selection="selectedPath"
+						:active-category="activeCategory" />
 				</Pane>
 			</Splitpanes>
 		</div>
@@ -94,30 +82,32 @@ import { Splitpanes, Pane } from 'splitpanes'
 import { translate as t } from '@nextcloud/l10n'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 
-import FileAgeChartDropdown from '../components/FileAgeChartDropdown.vue'
-import FileAgeChart from '../components/FileAgeChart.vue'
-import Tabs from '../components/Tabs.vue'
-import Tab from '../components/Tab.vue'
 import FolderTree from '../components/FolderTree.vue'
 import Treemap from '../components/Treemap.vue'
 import CategoryLegend from '../components/CategoryLegend.vue'
+import FileAgePanel from '../components/FileAgePanel.vue'
+import LowerViewToggle from '../components/LowerViewToggle.vue'
 import { formatBytes, formatDate } from '../utils/format.js'
-import { loadPaneSizes, savePaneSizes } from '../utils/panelSplit.js'
+import { loadLowerView, loadPaneSizes, savePaneSizes } from '../utils/panelSplit.js'
 
 export default {
 	name: 'ExternalStorageDetail',
-	components: { Treemap, FolderTree, CategoryLegend, NcNoteCard, Splitpanes, Pane, Tabs, Tab, FileAgeChart, FileAgeChartDropdown },
+	components: { Treemap, FolderTree, CategoryLegend, FileAgePanel, LowerViewToggle, NcNoteCard, Splitpanes, Pane },
 	props: {
 		storage: { type: Object, required: true },
 	},
 	data() {
 		return {
 			paneSizes: loadPaneSizes(),
+			// 'map' | 'ages': what the lower pane shows, switched from the header.
+			lowerView: loadLowerView(),
+			// The tree's current selection ({path, type}) — the file age
+			// panel follows it, the same way the map's focus does.
+			selectedPath: null,
 			// Owned here rather than in Treemap for the same reason
 			// TeamFolderDetail owns it: the header's <CategoryLegend> and the
 			// map are siblings and must read/write one value.
 			activeCategory: null,
-			ageMetric: 'count',
 		}
 	},
 	computed: {
@@ -132,6 +122,7 @@ export default {
 	watch: {
 		'storage.storageId'() {
 			this.activeCategory = null
+			this.selectedPath = null
 		},
 	},
 	methods: {
@@ -143,6 +134,7 @@ export default {
 		onSelectPath(payload) {
 			// See InstanceView: focus and category filter cannot both apply.
 			this.activeCategory = null
+			this.selectedPath = payload
 			this.$refs.treemap?.focusPath(payload)
 		},
 		onToggleCategory(key) {
@@ -189,8 +181,16 @@ export default {
 	color: var(--color-text-maxcontrast);
 }
 
-.external-detail__legend {
+/* Legend, view switch and info button wrap as one right-aligned group, so a
+   header too wide for one line moves them down together instead of
+   stranding the switch on a row of its own. */
+.external-detail__tools {
 	margin-inline-start: auto;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 6px 10px;
 }
 
 .external-detail__info {

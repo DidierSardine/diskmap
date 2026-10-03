@@ -12,68 +12,67 @@
 		<template v-else>
 			<div class="my-storage__header">
 				<h2>{{ t('diskmap', 'My storage') }}</h2>
-				<a :href="filesUrl" class="my-storage__open-in-files"
+				<a
+					:href="filesUrl"
+					class="my-storage__open-in-files"
 					:title="t('diskmap', 'Open the selected folder in Files')">
 					📂 {{ t('diskmap', 'Open in Files') }}
 				</a>
 				<span class="my-storage__sep">·</span>
 				<span><strong>{{ formatBytes(overview.used) }}</strong> {{ t('diskmap', 'used') }}</span>
 				<span class="my-storage__sep">·</span>
-				<span>{{ t('diskmap', 'Quota') }} <strong>{{ overview.quota !== null ? formatBytes(overview.quota) :
-					t('diskmap', 'Unlimited') }}</strong></span>
+				<span>{{ t('diskmap', 'Quota') }} <strong>{{ overview.quota !== null ? formatBytes(overview.quota) : t('diskmap', 'Unlimited') }}</strong></span>
 				<span class="my-storage__sep">·</span>
 				<span><strong>{{ formatBytes(overview.filesSize) }}</strong> {{ t('diskmap', 'files') }}</span>
 				<span class="my-storage__sep">·</span>
 				<span><strong>{{ formatBytes(overview.trashSize) }}</strong> {{ t('diskmap', 'trash') }}</span>
 				<template v-if="overview.versionsSize > 0">
 					<span class="my-storage__sep">·</span>
-					<span><strong>{{ formatBytes(overview.versionsSize) }}</strong> {{ t('diskmap', 'versions')
-					}}</span>
+					<span><strong>{{ formatBytes(overview.versionsSize) }}</strong> {{ t('diskmap', 'versions') }}</span>
 				</template>
 				<template v-if="overview.occupancyPercent !== null">
 					<span class="my-storage__sep">·</span>
 					<span><strong>{{ overview.occupancyPercent }}%</strong> {{ t('diskmap', 'occupancy') }}</span>
 				</template>
-				<CategoryLegend class="my-storage__legend" :active-category="activeCategory"
-					@toggle="onToggleCategory" />
-				<button type="button" class="my-storage__info"
-					:title="t('diskmap', 'Reflects the file cache as of {date}.', { date: lastUpdatedLabel })"
-					:aria-label="t('diskmap', 'Reflects the file cache as of {date}.', { date: lastUpdatedLabel })">
-					ⓘ
-				</button>
+				<div class="my-storage__tools">
+					<CategoryLegend
+						:active-category="activeCategory"
+						@toggle="onToggleCategory" />
+					<LowerViewToggle v-model="lowerView" />
+					<button
+						type="button"
+						class="my-storage__info"
+						:title="t('diskmap', 'Reflects the file cache as of {date}.', { date: lastUpdatedLabel })"
+						:aria-label="t('diskmap', 'Reflects the file cache as of {date}.', { date: lastUpdatedLabel })">
+						ⓘ
+					</button>
+				</div>
 			</div>
 
 			<div class="my-storage__panels">
 				<Splitpanes horizontal @resized="onPanesResized">
 					<Pane :size="paneSizes[0]" :min-size="15">
-						<FolderTree ref="folderTree" scope="user" :identifier="uid"
-							:root-label="t('diskmap', 'My storage')" @select-path="onSelectPath" />
+						<FolderTree
+							ref="folderTree"
+							scope="user"
+							:identifier="uid"
+							:root-label="t('diskmap', 'My storage')"
+							@select-path="onSelectPath" />
 					</Pane>
 					<Pane :size="paneSizes[1]" :min-size="15">
-						<Tabs>
-							<Tab title="Treemap">
-								<Treemap ref="treemap" scope="user" :identifier="uid" :active-category="activeCategory"
-									@reveal-path="onRevealPath" />
-							</Tab>
-							<Tab :title="t('diskmap', 'Files age')">
-								<div style="display: flex; width: 100%; height:100%;">
-									<div style="width: 75%; height:100%">
-										<div style="width: 25%; height: 20%;">
-											<FileAgeChartDropdown v-model="ageMetric" />
-										</div>
-										<div style="height: 80%;">
-											<FileAgeChart :key="'bar-' + ageMetric" scope="user" :identifier="uid"
-												:type="ageMetric" :active-category="activeCategory" />
-										</div>
-									</div>
-									<div style="width: 25%; height:100%">
-										<FileAgeChart :key="'doughnut-' + ageMetric" scope="user" :identifier="uid"
-											:type="'percentages-' + ageMetric" variant="doughnut"
-											:active-category="activeCategory" />
-									</div>
-								</div>
-							</Tab>
-						</Tabs>
+						<Treemap
+							v-show="lowerView === 'map'"
+							ref="treemap"
+							scope="user"
+							:identifier="uid"
+							:active-category="activeCategory"
+							@reveal-path="onRevealPath" />
+						<FileAgePanel
+							v-if="lowerView === 'ages'"
+							scope="user"
+							:identifier="uid"
+							:selection="selectedPath"
+							:active-category="activeCategory" />
 					</Pane>
 				</Splitpanes>
 			</div>
@@ -87,21 +86,19 @@ import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import { translate as t } from '@nextcloud/l10n'
 
-import FileAgeChartDropdown from '../components/FileAgeChartDropdown.vue'
-import FileAgeChart from '../components/FileAgeChart.vue'
-import Tabs from '../components/Tabs.vue'
-import Tab from '../components/Tab.vue'
 import FolderTree from '../components/FolderTree.vue'
 import Treemap from '../components/Treemap.vue'
 import CategoryLegend from '../components/CategoryLegend.vue'
+import FileAgePanel from '../components/FileAgePanel.vue'
+import LowerViewToggle from '../components/LowerViewToggle.vue'
 import { fetchMyOverview } from '../services/api.js'
 import { formatBytes, formatDate } from '../utils/format.js'
-import { loadPaneSizes, savePaneSizes } from '../utils/panelSplit.js'
+import { loadLowerView, loadPaneSizes, savePaneSizes } from '../utils/panelSplit.js'
 import { filesAppUrl } from '../utils/filesApp.js'
 
 export default {
 	name: 'MyStorageView',
-	components: { NcLoadingIcon, NcNoteCard, Treemap, FolderTree, CategoryLegend, Splitpanes, Pane, Tabs, Tab, FileAgeChart, FileAgeChartDropdown },
+	components: { NcLoadingIcon, NcNoteCard, Treemap, FolderTree, CategoryLegend, FileAgePanel, LowerViewToggle, Splitpanes, Pane },
 	props: {
 		uid: { type: String, required: true },
 	},
@@ -111,6 +108,8 @@ export default {
 			loading: true,
 			loadError: false,
 			paneSizes: loadPaneSizes(),
+			// 'map' | 'ages': what the lower pane shows, switched from the header.
+			lowerView: loadLowerView(),
 			// Owned here (not in Treemap) so the header's <CategoryLegend> and
 			// the map below can read/write the same value — they're siblings.
 			activeCategory: null,
@@ -118,11 +117,6 @@ export default {
 			// onSelectPath() purely to drive the "Open in Files" link below —
 			// the tree/map sync itself doesn't need this view to remember it.
 			selectedPath: null,
-			// Metric shared by both "Files Age" charts, driven by the dropdown
-			// above them ('count' | 'size'). Owned here because the dropdown
-			// and the two charts are all siblings — one of them has to hold
-			// the value, and this view is the natural owner.
-			ageMetric: 'count',
 		}
 	},
 	computed: {
@@ -230,8 +224,16 @@ export default {
 	border-color: var(--color-primary-element);
 }
 
-.my-storage__legend {
+/* Legend, view switch and info button wrap as one right-aligned group, so a
+   header too wide for one line moves them down together instead of
+   stranding the switch on a row of its own. */
+.my-storage__tools {
 	margin-inline-start: auto;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 6px 10px;
 }
 
 .my-storage__info {
@@ -255,4 +257,8 @@ export default {
 	min-height: 0;
 	margin-top: 6px;
 }
+
+
+
+
 </style>
