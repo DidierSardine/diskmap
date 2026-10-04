@@ -42,7 +42,8 @@
 					:x="LABEL_WIDTH"
 					:y="row.cy"
 					text-anchor="end"
-					dominant-baseline="central">
+					dominant-baseline="central"
+					:font-size="textSize">
 					{{ row.label }}
 				</text>
 				<rect
@@ -64,7 +65,8 @@
 					class="dm-ages__value"
 					:x="barX + row.width + 8"
 					:y="row.cy"
-					dominant-baseline="central">
+					dominant-baseline="central"
+					:font-size="textSize">
 					{{ row.value }}<tspan class="dm-ages__percent"> · {{ row.percent }}</tspan>
 				</text>
 			</g>
@@ -84,10 +86,10 @@
 					transform="rotate(-90)">
 					<title>{{ segment.tooltip }}</title>
 				</circle>
-				<text class="dm-ages__donut-total" text-anchor="middle" dominant-baseline="central" :y="metric === 'count' ? -7 : 0">
+				<text class="dm-ages__donut-total" text-anchor="middle" dominant-baseline="central" :font-size="donut.totalSize" :y="metric === 'count' ? -donut.unitSize * 0.6 : 0">
 					{{ donut.total }}
 				</text>
-				<text v-if="metric === 'count'" class="dm-ages__donut-unit" text-anchor="middle" dominant-baseline="central" y="11">
+				<text v-if="metric === 'count'" class="dm-ages__donut-unit" text-anchor="middle" dominant-baseline="central" :font-size="donut.unitSize" :y="donut.totalSize * 0.75">
 					{{ t('diskmap', 'files') }}
 				</text>
 			</g>
@@ -110,12 +112,13 @@ import { formatBytes, formatCount } from '../utils/format.js'
 const LABEL_WIDTH = 72
 const VALUE_WIDTH = 120
 const GAP = 10
-const MIN_ROW = 22
-const MAX_ROW = 52
+// Rows split the pane's height evenly, so the chart grows and shrinks with
+// the split; only a floor, so a very short pane still draws something.
+const MIN_ROW = 10
 // The donut only shows when the pane is wide enough to keep the bars
 // readable beside it; on a narrow pane the percentages on the bars suffice.
 const DONUT_MIN_PANE = 560
-const DONUT_MAX = 240
+const DONUT_MIN = 48
 const DONUT_GAP = 24
 // Newest bucket fully saturated, each older one fainter — the bars read as
 // "fading with age" without needing a second palette next to the category one.
@@ -181,7 +184,8 @@ export default {
 			if (this.width < DONUT_MIN_PANE) {
 				return 0
 			}
-			return Math.round(Math.min(DONUT_MAX, this.rowHeight * this.labels.length, this.width / 3))
+			const size = Math.round(Math.min(this.rowHeight * this.labels.length, this.width / 3))
+			return size >= DONUT_MIN ? size : 0
 		},
 		// Room kept right of the value labels for the donut, with the same
 		// margin on both of its sides so it sits centred in that column.
@@ -192,13 +196,17 @@ export default {
 			return Math.max(0, this.width - this.barX - VALUE_WIDTH - this.donutSpace)
 		},
 		rowHeight() {
-			return Math.min(MAX_ROW, Math.max(MIN_ROW, this.height / this.labels.length))
+			return Math.max(MIN_ROW, this.height / this.labels.length)
 		},
 		barHeight() {
-			return Math.round(Math.min(this.rowHeight * 0.62, 26))
+			return Math.max(4, Math.round(this.rowHeight * 0.7))
 		},
 		barRadius() {
-			return Math.min(4, this.barHeight / 2)
+			return Math.min(6, this.barHeight / 2)
+		},
+		// Label/value text follows the row height between readable bounds.
+		textSize() {
+			return Math.round(Math.min(14, Math.max(10, this.rowHeight * 0.4)))
 		},
 		rows() {
 			if (!this.data) {
@@ -262,6 +270,8 @@ export default {
 				circumference,
 				segments,
 				total: this.metric === 'size' ? formatBytes(total) : formatCount(total),
+				totalSize: Math.round(Math.min(26, Math.max(11, this.donutSize * 0.085))),
+				unitSize: Math.round(Math.min(15, Math.max(9, this.donutSize * 0.055))),
 			}
 		},
 	},
@@ -403,7 +413,6 @@ export default {
 .dm-ages__label,
 .dm-ages__value {
 	fill: var(--color-main-text);
-	font-size: 12px;
 }
 
 .dm-ages__percent {
@@ -434,12 +443,10 @@ export default {
 
 .dm-ages__donut-total {
 	fill: var(--color-main-text);
-	font-size: 15px;
 	font-weight: bold;
 }
 
 .dm-ages__donut-unit {
 	fill: var(--color-text-maxcontrast);
-	font-size: 11px;
 }
 </style>
