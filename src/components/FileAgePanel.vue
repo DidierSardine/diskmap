@@ -68,6 +68,29 @@
 					{{ row.value }}<tspan class="dm-ages__percent"> · {{ row.percent }}</tspan>
 				</text>
 			</g>
+			<!-- Share of the total per bucket, as a donut in the room right of
+				 the bars — same colors as the bars, so no legend of its own. -->
+			<g v-if="donut" :transform="`translate(${donut.cx} ${donut.cy})`">
+				<circle class="dm-ages__ring" :r="donut.r" :stroke-width="donut.thickness" />
+				<circle
+					v-for="segment in donut.segments"
+					:key="segment.index"
+					class="dm-ages__segment"
+					:r="donut.r"
+					:stroke-width="donut.thickness"
+					:stroke-dasharray="`${segment.length} ${donut.circumference}`"
+					:stroke-dashoffset="-segment.offset"
+					:stroke-opacity="segment.opacity"
+					transform="rotate(-90)">
+					<title>{{ segment.tooltip }}</title>
+				</circle>
+				<text class="dm-ages__donut-total" text-anchor="middle" dominant-baseline="central" :y="metric === 'count' ? -7 : 0">
+					{{ donut.total }}
+				</text>
+				<text v-if="metric === 'count'" class="dm-ages__donut-unit" text-anchor="middle" dominant-baseline="central" y="11">
+					{{ t('diskmap', 'files') }}
+				</text>
+			</g>
 		</svg>
 	</div>
 </template>
@@ -89,6 +112,11 @@ const VALUE_WIDTH = 120
 const GAP = 10
 const MIN_ROW = 22
 const MAX_ROW = 52
+// The donut only shows when the pane is wide enough to keep the bars
+// readable beside it; on a narrow pane the percentages on the bars suffice.
+const DONUT_MIN_PANE = 560
+const DONUT_MAX = 240
+const DONUT_GAP = 24
 // Newest bucket fully saturated, each older one fainter — the bars read as
 // "fading with age" without needing a second palette next to the category one.
 const BUCKET_OPACITY = [1, 0.8, 0.62, 0.46, 0.32]
@@ -147,8 +175,21 @@ export default {
 		barX() {
 			return LABEL_WIDTH + GAP
 		},
+		// Side of the donut's square: as tall as the bar block, capped, and
+		// never more than a third of the width.
+		donutSize() {
+			if (this.width < DONUT_MIN_PANE) {
+				return 0
+			}
+			return Math.round(Math.min(DONUT_MAX, this.rowHeight * this.labels.length, this.width / 3))
+		},
+		// Room kept right of the value labels for the donut, with the same
+		// margin on both of its sides so it sits centred in that column.
+		donutSpace() {
+			return this.donutSize ? this.donutSize + 2 * DONUT_GAP : 0
+		},
 		barMaxWidth() {
-			return Math.max(0, this.width - this.barX - VALUE_WIDTH)
+			return Math.max(0, this.width - this.barX - VALUE_WIDTH - this.donutSpace)
 		},
 		rowHeight() {
 			return Math.min(MAX_ROW, Math.max(MIN_ROW, this.height / this.labels.length))
@@ -181,6 +222,47 @@ export default {
 					tooltip: `${this.labels[index]}: ${formatCount(this.data.buckets[index])} ${t('diskmap', 'files')} · ${formatBytes(this.data.sizes[index])}`,
 				}
 			})
+		},
+		donut() {
+			if (!this.data || !this.donutSize) {
+				return null
+			}
+			const values = this.metric === 'size' ? this.data.sizes : this.data.buckets
+			const total = values.reduce((a, b) => a + b, 0)
+			if (!total) {
+				return null
+			}
+			const thickness = Math.max(10, Math.round(this.donutSize * 0.16))
+			const r = (this.donutSize - thickness) / 2
+			const circumference = 2 * Math.PI * r
+			// A hairline between neighbouring segments, dropped for slivers
+			// that would otherwise vanish into the gap.
+			const gap = values.filter((v) => v > 0).length > 1 ? 2 : 0
+			let offset = 0
+			const segments = []
+			values.forEach((value, index) => {
+				const full = (value / total) * circumference
+				if (full > 0) {
+					segments.push({
+						index,
+						length: Math.max(0.5, full - gap),
+						offset,
+						opacity: BUCKET_OPACITY[index],
+						tooltip: `${this.labels[index]}: ${this.formatPercent(value, total)}`,
+					})
+				}
+				offset += full
+			})
+			return {
+				cx: this.width - this.donutSpace / 2,
+				// Centred on the bar block, which can be taller than the donut.
+				cy: (this.rowHeight * this.labels.length) / 2,
+				r,
+				thickness,
+				circumference,
+				segments,
+				total: this.metric === 'size' ? formatBytes(total) : formatCount(total),
+			}
 		},
 	},
 	watch: {
@@ -335,5 +417,29 @@ export default {
 .dm-ages__fill {
 	fill: var(--color-primary-element);
 	transition: width 0.2s;
+}
+
+.dm-ages__ring,
+.dm-ages__segment {
+	fill: none;
+}
+
+.dm-ages__ring {
+	stroke: var(--color-background-dark);
+}
+
+.dm-ages__segment {
+	stroke: var(--color-primary-element);
+}
+
+.dm-ages__donut-total {
+	fill: var(--color-main-text);
+	font-size: 15px;
+	font-weight: bold;
+}
+
+.dm-ages__donut-unit {
+	fill: var(--color-text-maxcontrast);
+	font-size: 11px;
 }
 </style>

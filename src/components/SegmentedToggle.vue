@@ -34,7 +34,11 @@ export default {
 </script>
 
 <style scoped>
-/* Deliberately small — the same height as the header's legend chips — so it
+/* Every rule on the items is scoped under .dm-segmented: core's server.css
+   gives every <button> margin: 3px through a selector (button:not(...):not(...))
+   that outranks a lone class, which left a gap around the active segment.
+
+   Deliberately small — the same height as the header's legend chips — so it
    can share the header row rather than costing the panels a row of their own. */
 .dm-segmented {
 	display: inline-flex;
@@ -44,7 +48,7 @@ export default {
 	overflow: hidden;
 }
 
-.dm-segmented__item {
+.dm-segmented .dm-segmented__item {
 	margin: 0;
 	min-height: 0;
 	padding: 2px 10px;
@@ -59,16 +63,16 @@ export default {
 	cursor: pointer;
 }
 
-.dm-segmented__item + .dm-segmented__item {
+.dm-segmented .dm-segmented__item + .dm-segmented__item {
 	border-inline-start: 1px solid var(--color-border-dark, var(--color-border));
 }
 
-.dm-segmented__item:hover {
+.dm-segmented .dm-segmented__item:hover {
 	background: var(--color-background-hover);
 }
 
-.dm-segmented__item--active,
-.dm-segmented__item--active:hover {
+.dm-segmented .dm-segmented__item--active,
+.dm-segmented .dm-segmented__item--active:hover {
 	background: var(--color-primary-element);
 	color: var(--color-primary-element-text);
 }
